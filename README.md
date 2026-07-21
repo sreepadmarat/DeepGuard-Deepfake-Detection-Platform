@@ -29,7 +29,7 @@ DeepGuard is a comprehensive, full-stack Flask application designed for deepfake
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/deepfake-detection.git
+git clone https://github.com/sreepadmarat/deepfake-detection.git
 cd deepfake-detection
 ```
 
