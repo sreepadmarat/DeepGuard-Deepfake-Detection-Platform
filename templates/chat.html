@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Detect — DeepGuard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --primary:#2563eb; --primary-light:#dbeafe;
+    --accent:#0ea5e9; --surface:#f8fafc;
+    --text:#0f172a; --muted:#64748b;
+    --border:#e2e8f0; --sidebar:#ffffff;
+    --chat-bg:#f1f5f9;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Nunito',sans-serif; background:var(--chat-bg); color:var(--text); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+  h1,h2,h3,h4 { font-family:'Manrope',sans-serif; }
+
+  /* Layout */
+  .app-shell { display:flex; height:100vh; overflow:hidden; }
+
+  /* Sidebar */
+  .sidebar {
+    width:260px; flex-shrink:0;
+    background:var(--sidebar);
+    border-right:1px solid var(--border);
+    display:flex; flex-direction:column;
+    transition:transform 0.3s ease;
+  }
+  .sidebar-header { padding:16px; border-bottom:1px solid var(--border); }
+  .sidebar-body { flex:1; overflow-y:auto; padding:12px; }
+  .sidebar-footer { padding:12px; border-top:1px solid var(--border); }
+
+  .nav-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:10px;
+    font-size:14px; font-weight:600; color:var(--muted);
+    cursor:pointer; transition:all 0.2s ease;
+    text-decoration:none; margin-bottom:2px;
+  }
+  .nav-item:hover, .nav-item.active { background:var(--primary-light); color:var(--primary); }
+  .nav-item .icon { width:18px; height:18px; flex-shrink:0; }
+
+  /* Main chat area */
+  .chat-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .chat-topbar { background:white; border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  .chat-body { flex:1; overflow-y:auto; padding:24px 20px; display:flex; flex-direction:column; gap:16px; }
+  .chat-input-area { background:white; border-top:1px solid var(--border); padding:16px 20px; flex-shrink:0; }
+
+  /* Messages */
+  .msg-row { display:flex; gap:10px; align-items:flex-start; }
+  .msg-row.user { flex-direction:row-reverse; }
+  .msg-avatar { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; font-weight:700; }
+  .msg-avatar.ai { background:linear-gradient(135deg,#2563eb,#0ea5e9); color:white; }
+  .msg-avatar.user { background:var(--primary-light); color:var(--primary); }
+
+  .msg-bubble {
+    max-width:70%; padding:12px 16px;
+    border-radius:16px; font-size:14px; line-height:1.65;
+    font-weight:500;
+  }
+  .msg-bubble.ai { background:white; border:1px solid var(--border); border-top-left-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+  .msg-bubble.user { background:linear-gradient(135deg,#2563eb,#0ea5e9); color:white; border-top-right-radius:4px; }
+  .msg-time { font-size:11px; color:var(--muted); margin-top:4px; font-weight:500; }
+  .msg-row.user .msg-time { text-align:right; }
+
+  /* Result card inside message */
+  .result-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:16px; margin-top:12px;
+  }
+  .result-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 14px; border-radius:99px;
+    font-size:13px; font-weight:700; font-family:'Manrope',sans-serif;
+  }
+  .result-badge.fake { background:#fee2e2; color:#dc2626; }
+  .result-badge.real { background:#dcfce7; color:#16a34a; }
+  .conf-bar { height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin:8px 0; }
+  .conf-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#0ea5e9); transition:width 1.5s ease; }
+
+  /* GradCAM image */
+  .gradcam-img { width:100%; border-radius:10px; margin-top:10px; border:1px solid var(--border); display:block; }
+
+  /* Follow-up questions */
+  .followup-chip {
+    display:inline-flex; align-items:center; gap:6px;
+    background:white; border:1.5px solid var(--border);
+    border-radius:99px; padding:6px 14px;
+    font-size:13px; font-weight:600; color:var(--text);
+    cursor:pointer; transition:all 0.2s ease;
+    font-family:'Nunito',sans-serif;
+  }
+  .followup-chip:hover { border-color:var(--primary); color:var(--primary); background:var(--primary-light); }
+
+  /* Input box */
+  .input-wrapper {
+    display:flex; align-items:flex-end; gap:10px;
+    background:var(--surface); border:1.5px solid var(--border);
+    border-radius:16px; padding:10px 14px;
+    transition:border-color 0.2s ease;
+  }
+  .input-wrapper:focus-within { border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+  .chat-textarea {
+    flex:1; background:none; border:none; outline:none;
+    font-family:'Nunito',sans-serif; font-size:14px; font-weight:500;
+    color:var(--text); resize:none; max-height:120px;
+    line-height:1.5;
+  }
+  .chat-textarea::placeholder { color:var(--muted); }
+
+  .attach-btn, .send-btn {
+    width:36px; height:36px; border-radius:10px;
+    border:none; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+    flex-shrink:0; transition:all 0.2s ease;
+  }
+  .attach-btn { background:var(--primary-light); color:var(--primary); }
+  .attach-btn:hover { background:#bfdbfe; }
+  .send-btn { background:linear-gradient(135deg,#2563eb,#0ea5e9); color:white; box-shadow:0 2px 8px rgba(37,99,235,0.3); }
+  .send-btn:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(37,99,235,0.4); }
+  .send-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+  /* Upload dropdown */
+  .upload-menu {
+    position:absolute; bottom:100%; left:0; margin-bottom:8px;
+    background:white; border:1px solid var(--border);
+    border-radius:14px; box-shadow:0 8px 32px rgba(0,0,0,0.12);
+    padding:8px; min-width:200px; display:none; z-index:50;
+  }
+  .upload-menu.open { display:block; animation:fadeUp 0.2s ease; }
+  .upload-option {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:10px;
+    font-size:13px; font-weight:600; color:var(--text);
+    cursor:pointer; transition:background 0.2s ease;
+  }
+  .upload-option:hover { background:var(--primary-light); color:var(--primary); }
+
+  /* Typing indicator */
+  .typing-dots span {
+    display:inline-block; width:6px; height:6px;
+    background:var(--muted); border-radius:50%;
+    animation:bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay:0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  /* Scrollbar */
+  .chat-body::-webkit-scrollbar { width:5px; }
+  .chat-body::-webkit-scrollbar-track { background:transparent; }
+  .chat-body::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:99px; }
+
+  .sidebar-body::-webkit-scrollbar { width:4px; }
+  .sidebar-body::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:99px; }
+
+  /* Download report btn */
+  .report-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--primary-light); color:var(--primary);
+    border:none; border-radius:8px; padding:7px 14px;
+    font-size:12px; font-weight:700; cursor:pointer;
+    transition:all 0.2s ease; text-decoration:none;
+    font-family:'Nunito',sans-serif;
+  }
+  .report-btn:hover { background:#bfdbfe; }
+
+  .model-tag {
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:700; color:var(--muted);
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:99px; padding:3px 10px;
+  }
+
+  /* Clear chat button */
+  .clear-chat-btn {
+    display:flex; align-items:center; gap:5px;
+    padding:7px 13px; border:1.5px solid #fee2e2;
+    border-radius:10px; font-size:13px; font-weight:600;
+    color:#dc2626; background:white; cursor:pointer;
+    transition:all 0.2s ease; font-family:'Nunito',sans-serif;
+  }
+  .clear-chat-btn:hover { background:#fee2e2; border-color:#dc2626; }
+
+  /* Session divider */
+  .session-divider {
+    display:flex; align-items:center; gap:12px;
+    margin:8px 0 4px;
+  }
+  .session-divider::before, .session-divider::after {
+    content:''; flex:1; height:1px; background:var(--border);
+  }
+  .session-divider span {
+    font-size:11px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.07em;
+    white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="/" class="flex items-center gap-2" style="text-decoration:none">
+        <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#2563eb,#0ea5e9)">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+        </div>
+        <span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:1rem;color:var(--text)">DeepGuard</span>
+      </a>
+    </div>
+
+    <div class="sidebar-body">
+      <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:8px 12px 4px">Navigation</p>
+      <a href="/chat" class="nav-item active">
+        <svg class="icon" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Detect Media
+      </a>
+      <a href="/history" class="nav-item">
+        <svg class="icon" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline stroke="currentColor" stroke-width="1.8" points="12 6 12 12 16 14"/></svg>
+        Detection History
+      </a>
+
+      <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:16px 12px 4px">Models</p>
+      <div style="padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="width:8px;height:8px;background:#16a34a;border-radius:50%;animation:pulse 2s infinite"></div>
+          <span style="font-size:12px;font-weight:700;color:var(--text)">EfficientViT-B0</span>
+        </div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.5">Image detection · 96.8% accuracy</p>
+        <div style="height:4px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:8px">
+          <div style="height:100%;width:96.8%;background:linear-gradient(90deg,#2563eb,#0ea5e9);border-radius:99px"></div>
+        </div>
+      </div>
+      <div style="padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);margin-top:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="width:8px;height:8px;background:#16a34a;border-radius:50%;animation:pulse 2s infinite"></div>
+          <span style="font-size:12px;font-weight:700;color:var(--text)">EfficientViT-B0</span>
+        </div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.5">Video detection · 40 frames</p>
+        <div style="height:4px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:8px">
+          <div style="height:100%;width:94.9%;background:linear-gradient(90deg,#2563eb,#0ea5e9);border-radius:99px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border-radius:12px;border:1px solid var(--border)">
+        <div style="width:34px;height:34px;border-radius:10px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;color:var(--primary)">
+          {{ session.get('user_name', 'U')[0].upper() }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ session.get('user_name', 'User') }}</p>
+          <p style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ session.get('user_email', '') }}</p>
+        </div>
+        <a href="/logout" style="color:var(--muted);transition:color 0.2s" title="Logout" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--muted)'">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CHAT -->
+  <main class="chat-main">
+
+    <!-- Top bar -->
+    <div class="chat-topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#0ea5e9);display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <h1 style="font-size:15px;font-weight:800;color:var(--text)">DeepGuard Detection</h1>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="width:7px;height:7px;background:#16a34a;border-radius:50%;display:inline-block;animation:pulse 2s infinite"></span>
+            <span style="font-size:12px;color:var(--muted);font-weight:500">EfficientViT-B0 + Gemini AI · Online</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        {% if predictions_list %}
+        <!-- Clear Chat button: only shown when there are active session results -->
+        <button class="clear-chat-btn" onclick="clearChat()" title="Clear current session results">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><polyline stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="3 6 5 6 21 6"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 11v6M14 11v6"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Clear Chat
+        </button>
+        {% endif %}
+        <a href="/history" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;transition:all 0.2s" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline stroke="currentColor" stroke-width="1.8" points="12 6 12 12 16 14"/></svg>
+          History
+        </a>
+      </div>
+    </div>
+
+    <!-- Chat body -->
+    <div class="chat-body" id="chatBody">
+
+      <!-- Welcome message -->
+      <div class="msg-row" id="welcomeMsg">
+        <div class="msg-avatar ai">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
+        </div>
+        <div style="max-width:70%">
+          <div class="msg-bubble ai">
+            <p style="font-weight:700;margin-bottom:6px">👋 Welcome to DeepGuard!</p>
+            <p>I'm your AI-powered deepfake detection assistant. Upload an <strong>image</strong> or <strong>video</strong> using the attachment button below to get started.</p>
+            <div style="margin-top:12px;padding:12px;background:var(--surface);border-radius:10px;border:1px solid var(--border)">
+              <p style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">I can help you:</p>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" d="M5 13l4 4L19 7"/></svg>
+                  Detect deepfake images with 96.8% accuracy
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" d="M5 13l4 4L19 7"/></svg>
+                  Analyze videos using 40-frame majority voting
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)">
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" d="M5 13l4 4L19 7"/></svg>
+                  Show GradCAM heatmaps &amp; generate PDF reports
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="msg-time">DeepGuard AI</div>
+        </div>
+      </div>
+
+      <!-- Render ALL predictions uploaded this session in sequence -->
+      {% for entry in predictions_list %}
+        {% set pred = entry.prediction %}
+
+        <!-- Session divider between multiple uploads -->
+        {% if loop.index > 1 %}
+        <div class="session-divider">
+          <span>Analysis #{{ loop.index }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Chat messages belonging to this prediction -->
+        {% for msg in entry.chat_messages %}
+        <div class="msg-row {{ 'user' if msg.role == 'user' else '' }}">
+          <div class="msg-avatar {{ 'user' if msg.role == 'user' else 'ai' }}">
+            {% if msg.role == 'user' %}
+              {{ session.get('user_name', 'U')[0].upper() }}
+            {% else %}
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
+            {% endif %}
+          </div>
+          <div style="max-width:70%">
+            <div class="msg-bubble {{ 'user' if msg.role == 'user' else 'ai' }}">{{ msg.message }}</div>
+            <div class="msg-time">{{ msg.role.title() }}</div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Prediction result card -->
+        <div class="msg-row">
+          <div class="msg-avatar ai">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
+          </div>
+          <div style="max-width:75%">
+            <div class="msg-bubble ai" style="padding:16px">
+              <p style="font-weight:700;margin-bottom:10px">Analysis complete for <span style="color:var(--primary)">{{ pred.file_name }}</span></p>
+
+              <div class="result-card">
+                <!-- Result badge -->
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+                  <span class="result-badge {{ 'fake' if pred.prediction == 'Fake' else 'real' }}">
+                    {{ '&#10007; DEEPFAKE DETECTED' if pred.prediction == 'Fake' else '&#10003; REAL MEDIA' }}
+                  </span>
+                  <div class="model-tag">
+                    <span style="width:6px;height:6px;background:#16a34a;border-radius:50%;display:inline-block"></span>
+                    EfficientViT-B0
+                  </div>
+                </div>
+
+                <!-- Confidence bar -->
+                <div style="margin-bottom:12px">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                    <span style="font-size:12px;font-weight:600;color:var(--muted)">Confidence Score</span>
+                    <span style="font-size:13px;font-weight:800;color:var(--primary)">{{ pred.confidence }}%</span>
+                  </div>
+                  <div class="conf-bar">
+                    <div class="conf-fill" style="width:{{ pred.confidence }}%"></div>
+                  </div>
+                </div>
+
+                <!-- GradCAM image -->
+                {% if pred.gradcam_path %}
+                <div style="margin-bottom:12px">
+                  <p style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">GradCAM Heatmap</p>
+                  <img src="/static/temp/{{ pred.gradcam_path | basename }}" alt="GradCAM" class="gradcam-img"/>
+                </div>
+                {% endif %}
+
+                <!-- RGB Frequency Histogram -->
+                {% if pred.rgb_path %}
+                <div style="margin-bottom:12px">
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                    <div style="display:flex;gap:3px">
+                      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444"></span>
+                      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e"></span>
+                      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
+                    </div>
+                    <p style="font-size:12px;font-weight:700;color:var(--text);margin:0">RGB Frequency Distribution</p>
+                  </div>
+                  <img src="/static/temp/{{ pred.rgb_path | basename }}" alt="RGB Histogram" class="gradcam-img" style="border-radius:10px"/>
+                  <p style="font-size:11px;color:var(--muted);margin-top:5px;font-weight:500">Pixel intensity distribution across Red, Green and Blue channels &mdash; unusual peaks or uniformity can indicate AI generation.</p>
+                </div>
+                {% endif %}
+
+                <!-- Download report -->
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  {% if pred.report_path %}
+                  <a href="/download_report/{{ pred.id }}" class="report-btn">
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    Download PDF Report
+                  </a>
+                  {% endif %}
+                  <span style="font-size:11px;color:var(--muted);font-weight:500">{{ pred.file_type | upper }} &middot; {{ pred.created_at }}</span>
+                </div>
+              </div>
+
+              <!-- Follow-up questions (only on the last card) -->
+              {% if loop.last and entry.follow_up_questions %}
+              <div style="margin-top:14px">
+                <p style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px">Ask a follow-up question:</p>
+                <div style="display:flex;flex-wrap:wrap;gap:6px" id="followupChips">
+                  {% for q in entry.follow_up_questions %}
+                  <button class="followup-chip" onclick="sendFollowup(this, '{{ q }}')">{{ q }}</button>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            <div class="msg-time">DeepGuard AI</div>
+          </div>
+        </div>
+      {% endfor %}
+
+    </div>
+
+    <!-- Chat input area -->
+    <div class="chat-input-area">
+      <div style="max-width:800px;margin:0 auto">
+        <div style="position:relative">
+          <!-- Upload dropdown -->
+          <div class="upload-menu" id="uploadMenu">
+            <div class="upload-option" onclick="triggerUpload('image')">
+              <div style="width:32px;height:32px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;justify-content:center">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#2563eb" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.5" fill="#2563eb"/><polyline stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" points="21,15 16,10 5,21"/></svg>
+              </div>
+              <div>
+                <p style="font-size:13px;font-weight:700">Upload Image</p>
+                <p style="font-size:11px;color:var(--muted)">JPG, PNG, WEBP</p>
+              </div>
+            </div>
+            <div class="upload-option" onclick="triggerUpload('video')">
+              <div style="width:32px;height:32px;background:#f0fdf4;border-radius:8px;display:flex;align-items:center;justify-content:center">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7" stroke="#16a34a" stroke-width="1.8" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="#16a34a" stroke-width="1.8"/></svg>
+              </div>
+              <div>
+                <p style="font-size:13px;font-weight:700">Upload Video</p>
+                <p style="font-size:11px;color:var(--muted)">MP4, AVI, MOV</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-wrapper">
+            <!-- Attach button -->
+            <div style="position:relative">
+              <button class="attach-btn" id="attachBtn" type="button" onclick="toggleUploadMenu()" title="Upload file">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              </button>
+            </div>
+
+            <textarea
+              class="chat-textarea"
+              id="chatInput"
+              placeholder="Ask a question about the detection, or upload a file..."
+              rows="1"
+              onkeydown="handleKey(event)"
+              oninput="autoResize(this)"
+            ></textarea>
+
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()" type="button">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><line stroke="white" stroke-width="2" stroke-linecap="round" x1="22" y1="2" x2="11" y2="13"/><polygon stroke="white" stroke-width="2" stroke-linejoin="round" points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+
+          <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px;font-weight:500">
+            Powered by EfficientViT-B0 &middot; GradCAM &middot; Gemini AI
+          </p>
+        </div>
+
+        <!-- Hidden file inputs -->
+        <input type="file" id="imageUpload" accept="image/*" style="display:none" onchange="submitFile(this,'image')"/>
+        <input type="file" id="videoUpload" accept="video/*" style="display:none" onchange="submitFile(this,'video')"/>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Hidden form for file submit -->
+<form id="uploadForm" method="POST" action="/predict" enctype="multipart/form-data" style="display:none">
+  <input type="file" name="file" id="formFile"/>
+  <input type="hidden" name="file_type" id="formFileType"/>
+</form>
+
+<script>
+const chatBody = document.getElementById('chatBody');
+
+function scrollToBottom() {
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+scrollToBottom();
+
+function toggleUploadMenu() {
+  const menu = document.getElementById('uploadMenu');
+  menu.classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('uploadMenu');
+  const btn = document.getElementById('attachBtn');
+  if (!menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
+
+function triggerUpload(type) {
+  document.getElementById('uploadMenu').classList.remove('open');
+  if (type === 'image') document.getElementById('imageUpload').click();
+  else document.getElementById('videoUpload').click();
+}
+
+function submitFile(input, type) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  addMessage('user', '📎 Uploaded: ' + file.name);
+  addTypingIndicator();
+  const formFile = document.getElementById('formFile');
+  const formType = document.getElementById('formFileType');
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  formFile.files = dt.files;
+  formType.value = type;
+  setTimeout(() => document.getElementById('uploadForm').submit(), 600);
+}
+
+function addMessage(role, text) {
+  const isUser = role === 'user';
+  const initials = '{{ session.get("user_name", "U")[0].upper() }}';
+  const row = document.createElement('div');
+  row.className = 'msg-row' + (isUser ? ' user' : '');
+  row.innerHTML = `
+    <div class="msg-avatar ${isUser ? 'user' : 'ai'}">${isUser ? initials : '<svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5z"/></svg>'}</div>
+    <div style="max-width:70%">
+      <div class="msg-bubble ${isUser ? 'user' : 'ai'}">${text}</div>
+      <div class="msg-time">${isUser ? 'You' : 'DeepGuard AI'}</div>
+    </div>`;
+  chatBody.appendChild(row);
+  scrollToBottom();
+  return row;
+}
+
+function addTypingIndicator() {
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.id = 'typingIndicator';
+  row.innerHTML = `
+    <div class="msg-avatar ai"><svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2L2 7l10 5 10-5-10-5z"/></svg></div>
+    <div class="msg-bubble ai" style="padding:14px 16px">
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+    </div>`;
+  chatBody.appendChild(row);
+  scrollToBottom();
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addMessage('user', text);
+  addTypingIndicator();
+  document.getElementById('sendBtn').disabled = true;
+  try {
+    const resp = await fetch('/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ message: text })
+    });
+    const data = await resp.json();
+    removeTypingIndicator();
+    addMessage('ai', data.response || 'Sorry, I could not process that.');
+  } catch(err) {
+    removeTypingIndicator();
+    addMessage('ai', 'Something went wrong. Please try again.');
+  }
+  document.getElementById('sendBtn').disabled = false;
+  scrollToBottom();
+}
+
+function sendFollowup(btn, question) {
+  btn.disabled = true;
+  btn.style.opacity = '0.5';
+  document.getElementById('chatInput').value = question;
+  sendMessage();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+/* ── Clear Chat ── */
+async function clearChat() {
+  if (!confirm('Clear the current session? Your saved detection history will NOT be deleted.')) return;
+  try {
+    await fetch('/clear_chat', { method: 'POST' });
+    window.location.reload();
+  } catch(e) {
+    alert('Failed to clear chat. Please try again.');
+  }
+}
+</script>
+</body>
+</html>

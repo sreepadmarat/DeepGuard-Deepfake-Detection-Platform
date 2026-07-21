@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Detection History — DeepGuard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --primary:#2563eb; --primary-light:#dbeafe;
+    --accent:#0ea5e9; --surface:#f8fafc;
+    --text:#0f172a; --muted:#64748b;
+    --border:#e2e8f0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Nunito',sans-serif; background:var(--surface); color:var(--text); min-height:100vh; }
+  h1,h2,h3,h4 { font-family:'Manrope',sans-serif; }
+
+  .app-shell { display:flex; min-height:100vh; }
+
+  /* Sidebar (same as chat) */
+  .sidebar {
+    width:260px; flex-shrink:0;
+    background:white; border-right:1px solid var(--border);
+    display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+  }
+  .sidebar-header { padding:16px; border-bottom:1px solid var(--border); }
+  .sidebar-body { flex:1; overflow-y:auto; padding:12px; }
+  .sidebar-footer { padding:12px; border-top:1px solid var(--border); }
+  .nav-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:10px;
+    font-size:14px; font-weight:600; color:var(--muted);
+    cursor:pointer; transition:all 0.2s ease;
+    text-decoration:none; margin-bottom:2px;
+  }
+  .nav-item:hover, .nav-item.active { background:var(--primary-light); color:var(--primary); }
+
+  /* Main content */
+  .main-content { flex:1; overflow-y:auto; }
+  .topbar { background:white; border-bottom:1px solid var(--border); padding:16px 28px; position:sticky; top:0; z-index:10; }
+
+  /* Stats bar */
+  .stats-bar { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding:24px 28px; }
+  .stat-box {
+    background:white; border-radius:16px; padding:20px;
+    border:1px solid var(--border); transition:all 0.3s ease;
+  }
+  .stat-box:hover { box-shadow:0 8px 24px rgba(37,99,235,0.1); transform:translateY(-2px); }
+  .stat-box .num { font-family:'Manrope',sans-serif; font-size:1.8rem; font-weight:800; background:linear-gradient(135deg,#2563eb,#0ea5e9); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .stat-box .lbl { font-size:13px; color:var(--muted); font-weight:600; margin-top:4px; }
+
+  /* Filters */
+  .filter-bar {
+    padding:0 28px 20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .filter-btn {
+    padding:7px 16px; border-radius:99px; font-size:13px; font-weight:700;
+    border:1.5px solid var(--border); background:white; color:var(--muted);
+    cursor:pointer; transition:all 0.2s ease; font-family:'Nunito',sans-serif;
+  }
+  .filter-btn:hover, .filter-btn.active { background:var(--primary-light); color:var(--primary); border-color:var(--primary); }
+  .search-box {
+    flex:1; min-width:200px; max-width:320px;
+    display:flex; align-items:center; gap:8px;
+    background:white; border:1.5px solid var(--border);
+    border-radius:10px; padding:8px 14px;
+    transition:border-color 0.2s;
+  }
+  .search-box:focus-within { border-color:var(--primary); }
+  .search-box input { border:none; outline:none; font-family:'Nunito',sans-serif; font-size:14px; font-weight:500; color:var(--text); background:transparent; flex:1; }
+  .search-box input::placeholder { color:var(--muted); }
+
+  /* Table */
+  .table-wrapper { padding:0 28px 28px; }
+  .history-table { width:100%; background:white; border-radius:16px; border:1px solid var(--border); overflow:hidden; }
+  .history-table thead th {
+    padding:12px 16px; text-align:left;
+    font-size:12px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:0.06em;
+    background:var(--surface); border-bottom:1px solid var(--border);
+  }
+  .history-table tbody tr { border-bottom:1px solid var(--border); transition:background 0.15s ease; }
+  .history-table tbody tr:last-child { border-bottom:none; }
+  .history-table tbody tr:hover { background:#f8faff; }
+  .history-table tbody td { padding:14px 16px; font-size:14px; font-weight:500; vertical-align:middle; }
+
+  .badge-fake { display:inline-flex; align-items:center; gap:5px; background:#fee2e2; color:#dc2626; font-size:12px; font-weight:700; padding:4px 12px; border-radius:99px; }
+  .badge-real { display:inline-flex; align-items:center; gap:5px; background:#dcfce7; color:#16a34a; font-size:12px; font-weight:700; padding:4px 12px; border-radius:99px; }
+  .badge-img { background:#f0f9ff; color:#0ea5e9; font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px; }
+  .badge-vid { background:#faf5ff; color:#7c3aed; font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px; }
+
+  .conf-mini { height:5px; background:#e2e8f0; border-radius:99px; overflow:hidden; width:80px; }
+  .conf-mini-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#0ea5e9); }
+
+  .action-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:5px 12px; border-radius:8px; font-size:12px; font-weight:700;
+    border:none; cursor:pointer; transition:all 0.2s ease;
+    text-decoration:none; font-family:'Nunito',sans-serif;
+  }
+  .action-btn.view { background:var(--primary-light); color:var(--primary); }
+  .action-btn.view:hover { background:#bfdbfe; }
+  .action-btn.download { background:#f0fdf4; color:#16a34a; }
+  .action-btn.download:hover { background:#dcfce7; }
+
+  /* Empty state */
+  .empty-state { text-align:center; padding:60px 20px; }
+  .empty-icon { width:64px; height:64px; border-radius:20px; background:var(--primary-light); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; }
+
+  /* Pagination */
+  .pagination { display:flex; gap:6px; justify-content:center; padding:20px 0; }
+  .page-btn { width:36px; height:36px; border-radius:10px; border:1.5px solid var(--border); background:white; font-size:13px; font-weight:700; color:var(--muted); cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; }
+  .page-btn:hover, .page-btn.active { background:var(--primary); color:white; border-color:var(--primary); }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .animate-in { animation:fadeUp 0.5s ease both; }
+
+  .gradcam-thumb { width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid var(--border); cursor:pointer; transition:transform 0.2s; }
+  .gradcam-thumb:hover { transform:scale(1.1); }
+
+  /* ── Modals ── */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(15,23,42,0.55);
+    backdrop-filter:blur(4px); z-index:100;
+    display:none; align-items:center; justify-content:center;
+    padding:16px;
+  }
+  .modal-overlay.open { display:flex; }
+
+  /* GradCAM image preview modal (small) */
+  .modal-box {
+    background:white; border-radius:20px; padding:24px;
+    max-width:480px; width:100%;
+    box-shadow:0 24px 60px rgba(0,0,0,0.2);
+    animation:fadeUp 0.3s ease;
+  }
+
+  /* View detail modal (wider) */
+  .view-modal-box {
+    background:white; border-radius:20px; padding:28px;
+    max-width:640px; width:100%; max-height:90vh; overflow-y:auto;
+    box-shadow:0 24px 60px rgba(0,0,0,0.2);
+    animation:fadeUp 0.3s ease;
+  }
+  .view-modal-box::-webkit-scrollbar { width:5px; }
+  .view-modal-box::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:99px; }
+
+  /* Result card inside modal */
+  .vm-result-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:16px; margin-top:12px;
+  }
+  .vm-result-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 14px; border-radius:99px;
+    font-size:13px; font-weight:700; font-family:'Manrope',sans-serif;
+  }
+  .vm-result-badge.fake { background:#fee2e2; color:#dc2626; }
+  .vm-result-badge.real { background:#dcfce7; color:#16a34a; }
+  .vm-conf-bar { height:8px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin:8px 0; }
+  .vm-conf-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#0ea5e9); }
+  .vm-img { width:100%; border-radius:10px; border:1px solid var(--border); display:block; margin-top:8px; }
+
+  .sidebar-body::-webkit-scrollbar { width:4px; }
+  .sidebar-body::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:99px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <a href="/" class="flex items-center gap-2" style="text-decoration:none">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#2563eb,#0ea5e9)">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+        </div>
+        <span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:1rem;color:var(--text)">DeepGuard</span>
+      </a>
+    </div>
+    <div class="sidebar-body">
+      <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:8px 12px 4px">Navigation</p>
+      <a href="/chat" class="nav-item">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Detect Media
+      </a>
+      <a href="/history" class="nav-item active">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><polyline stroke="currentColor" stroke-width="1.8" points="12 6 12 12 16 14"/></svg>
+        Detection History
+      </a>
+      <p style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:16px 12px 4px">Models</p>
+      <div style="padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div style="width:7px;height:7px;background:#16a34a;border-radius:50%"></div>
+          <span style="font-size:12px;font-weight:700">EfficientViT-B0 (Image)</span>
+        </div>
+        <p style="font-size:11px;color:var(--muted)">96.8% accuracy · Active</p>
+      </div>
+      <div style="padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);margin-top:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div style="width:7px;height:7px;background:#16a34a;border-radius:50%"></div>
+          <span style="font-size:12px;font-weight:700">EfficientViT-B0 (Video)</span>
+        </div>
+        <p style="font-size:11px;color:var(--muted)">94.9% accuracy · 40 frames</p>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border-radius:12px;border:1px solid var(--border)">
+        <div style="width:34px;height:34px;border-radius:10px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-family:'Manrope',sans-serif;font-weight:800;font-size:14px;color:var(--primary)">
+          {{ session.get('user_name', 'U')[0].upper() }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ session.get('user_name','User') }}</p>
+          <p style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ session.get('user_email','') }}</p>
+        </div>
+        <a href="/logout" style="color:var(--muted);transition:color 0.2s" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='var(--muted)'">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-0.3px">Detection History</h1>
+          <p style="font-size:13px;color:var(--muted);font-weight:500;margin-top:2px">All your past image and video analyses</p>
+        </div>
+        <a href="/chat" style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:white;padding:10px 20px;border-radius:11px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 4px 14px rgba(37,99,235,0.3);transition:all 0.2s" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform='none'">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><line stroke="white" stroke-width="2.5" stroke-linecap="round" x1="12" y1="5" x2="12" y2="19"/><line stroke="white" stroke-width="2.5" stroke-linecap="round" x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Detection
+        </a>
+      </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar animate-in">
+      <div class="stat-box">
+        <div class="num">{{ predictions | length }}</div>
+        <div class="lbl">Total Analyses</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" style="background:linear-gradient(135deg,#dc2626,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          {{ predictions | selectattr('prediction','equalto','Fake') | list | length }}
+        </div>
+        <div class="lbl">Deepfakes Found</div>
+      </div>
+      <div class="stat-box">
+        <div class="num" style="background:linear-gradient(135deg,#16a34a,#0ea5e9);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          {{ predictions | selectattr('prediction','equalto','Real') | list | length }}
+        </div>
+        <div class="lbl">Real Media</div>
+      </div>
+      <div class="stat-box">
+        {% set avg = (predictions | sum(attribute='confidence') / (predictions | length)) if predictions | length > 0 else 0 %}
+        <div class="num">{{ "%.1f" | format(avg) }}%</div>
+        <div class="lbl">Avg. Confidence</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar animate-in">
+      <button class="filter-btn active" onclick="filterTable('all',this)">All</button>
+      <button class="filter-btn" onclick="filterTable('fake',this)">Fake Only</button>
+      <button class="filter-btn" onclick="filterTable('real',this)">Real Only</button>
+      <button class="filter-btn" onclick="filterTable('image',this)">Images</button>
+      <button class="filter-btn" onclick="filterTable('video',this)">Videos</button>
+      <div class="search-box">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" stroke="var(--muted)" stroke-width="1.8"/><line stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search by filename..." id="searchInput" oninput="searchTable(this.value)"/>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper animate-in">
+      {% if predictions %}
+      <div class="history-table">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>File</th>
+              <th>Type</th>
+              <th>Result</th>
+              <th>Confidence</th>
+              <th>GradCAM</th>
+              <th>RGB Graph</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            {% for p in predictions %}
+            <tr class="history-row"
+                data-result="{{ p.prediction | lower }}"
+                data-type="{{ p.file_type | lower }}"
+                data-name="{{ p.file_name | lower }}">
+              <td style="color:var(--muted);font-size:12px;font-weight:700">{{ loop.index }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:36px;height:36px;border-radius:10px;background:{% if p.prediction=='Fake' %}#fee2e2{% else %}#dcfce7{% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                    {% if p.file_type == 'image' %}
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="{% if p.prediction=='Fake' %}#dc2626{% else %}#16a34a{% endif %}" stroke-width="1.8"/><polyline stroke="{% if p.prediction=='Fake' %}#dc2626{% else %}#16a34a{% endif %}" stroke-width="1.8" points="21,15 16,10 5,21"/></svg>
+                    {% else %}
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7" stroke="{% if p.prediction=='Fake' %}#dc2626{% else %}#16a34a{% endif %}" stroke-width="1.8" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="{% if p.prediction=='Fake' %}#dc2626{% else %}#16a34a{% endif %}" stroke-width="1.8"/></svg>
+                    {% endif %}
+                  </div>
+                  <div style="min-width:0">
+                    <p style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px" title="{{ p.file_name }}">{{ p.file_name }}</p>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="{{ 'badge-img' if p.file_type == 'image' else 'badge-vid' }}">
+                  {{ p.file_type | upper }}
+                </span>
+              </td>
+              <td>
+                <span class="{{ 'badge-fake' if p.prediction == 'Fake' else 'badge-real' }}">
+                  {{ '✗ Fake' if p.prediction == 'Fake' else '✓ Real' }}
+                </span>
+              </td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="conf-mini">
+                    <div class="conf-mini-fill" style="width:{{ p.confidence }}%;background:{% if p.prediction=='Fake' %}#dc2626{% else %}linear-gradient(90deg,#2563eb,#0ea5e9){% endif %}"></div>
+                  </div>
+                  <span style="font-size:12px;font-weight:700;color:var(--text)">{{ p.confidence }}%</span>
+                </div>
+              </td>
+              <td>
+                {% if p.gradcam_path %}
+                <img src="/static/temp/{{ p.gradcam_path | basename }}" class="gradcam-thumb" alt="GradCAM" onclick="openGradcam('/static/temp/{{ p.gradcam_path | basename }}', '{{ p.file_name }}', 'GradCAM Heatmap')"/>
+                {% else %}
+                <span style="font-size:12px;color:var(--muted)">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if p.rgb_path %}
+                <img src="/static/temp/{{ p.rgb_path | basename }}" class="gradcam-thumb" alt="RGB Graph" onclick="openGradcam('/static/temp/{{ p.rgb_path | basename }}', '{{ p.file_name }}', 'RGB Frequency Distribution')" style="border:1.5px solid #e2e8f0"/>
+                {% else %}
+                <span style="font-size:12px;color:var(--muted)">—</span>
+                {% endif %}
+              </td>
+              <td style="font-size:12px;color:var(--muted);white-space:nowrap">{{ p.created_at }}</td>
+              <td>
+                <div style="display:flex;gap:6px">
+                  <!-- FIX: View button now opens an in-page modal for THIS specific record -->
+                  <button class="action-btn view" onclick="openViewModal({{ p.id }})">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+                    View
+                  </button>
+                  {% if p.report_path %}
+                  <a href="/download_report/{{ p.id }}" class="action-btn download">
+                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    PDF
+                  </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if predictions | length > 10 %}
+      <div class="pagination" id="pagination"></div>
+      {% endif %}
+
+      {% else %}
+      <div class="history-table">
+        <div class="empty-state">
+          <div class="empty-icon">
+            <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#2563eb" stroke-width="1.8"/><polyline stroke="#2563eb" stroke-width="1.8" points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3 style="font-size:1rem;font-weight:800;margin-bottom:8px">No detections yet</h3>
+          <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6">Start by uploading an image or video in the detection page.</p>
+          <a href="/chat" style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#2563eb,#0ea5e9);color:white;padding:12px 24px;border-radius:11px;font-size:13px;font-weight:700;text-decoration:none;box-shadow:0 4px 14px rgba(37,99,235,0.3)">
+            Go to Detection →
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </main>
+</div>
+
+<!-- ── GradCAM / RGB image preview modal ── -->
+<div class="modal-overlay" id="gradcamModal">
+  <div class="modal-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-size:15px;font-weight:800" id="modalTitle">GradCAM Heatmap</h3>
+      <button onclick="closeGradcamModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px">✕</button>
+    </div>
+    <img id="modalImg" src="" alt="Preview" style="width:100%;border-radius:12px;border:1px solid var(--border)"/>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center;font-weight:500">Gradient-weighted Class Activation Map — highlighted regions influenced the model's decision</p>
+  </div>
+</div>
+
+<!-- ── History View Detail Modal ── -->
+<div class="modal-overlay" id="viewModal">
+  <div class="view-modal-box">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <h3 style="font-size:16px;font-weight:800;margin-bottom:4px" id="vmTitle">Detection Detail</h3>
+        <p style="font-size:12px;color:var(--muted);font-weight:500" id="vmSubtitle"></p>
+      </div>
+      <button onclick="closeViewModal()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px;flex-shrink:0">✕</button>
+    </div>
+
+    <!-- Loading state -->
+    <div id="vmLoading" style="text-align:center;padding:40px 0;color:var(--muted);font-size:14px;font-weight:600">
+      <svg width="24" height="24" fill="none" viewBox="0 0 24 24" style="margin:0 auto 12px;display:block;animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" stroke="#e2e8f0" stroke-width="3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/></svg>
+      Loading…
+    </div>
+
+    <!-- Content (hidden until loaded) -->
+    <div id="vmContent" style="display:none">
+
+      <!-- Result card -->
+      <div class="vm-result-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+          <span id="vmBadge" class="vm-result-badge">—</span>
+          <span style="font-size:11px;font-weight:700;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:3px 10px;display:inline-flex;align-items:center;gap:5px">
+            <span style="width:6px;height:6px;background:#16a34a;border-radius:50%;display:inline-block"></span>
+            EfficientViT-B0
+          </span>
+        </div>
+
+        <!-- Confidence -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:600;color:var(--muted)">Confidence Score</span>
+            <span id="vmConfText" style="font-size:13px;font-weight:800;color:var(--primary)"></span>
+          </div>
+          <div class="vm-conf-bar">
+            <div class="vm-conf-fill" id="vmConfFill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- File meta -->
+        <div style="font-size:12px;color:var(--muted);font-weight:500;margin-bottom:12px" id="vmMeta"></div>
+
+        <!-- GradCAM -->
+        <div id="vmGradcamSection" style="display:none;margin-bottom:14px">
+          <p style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px">GradCAM Heatmap</p>
+          <img id="vmGradcamImg" src="" alt="GradCAM" class="vm-img"/>
+        </div>
+
+        <!-- RGB -->
+        <div id="vmRgbSection" style="display:none;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <div style="display:flex;gap:3px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444"></span>
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e"></span>
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
+            </div>
+            <p style="font-size:12px;font-weight:700;color:var(--text);margin:0">RGB Frequency Distribution</p>
+          </div>
+          <img id="vmRgbImg" src="" alt="RGB Histogram" class="vm-img"/>
+          <p style="font-size:11px;color:var(--muted);margin-top:5px;font-weight:500">Pixel intensity distribution across Red, Green and Blue channels.</p>
+        </div>
+
+        <!-- Report download -->
+        <div id="vmReportSection" style="display:none">
+          <a id="vmReportLink" href="#" class="report-btn" style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;font-family:'Nunito',sans-serif">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download PDF Report
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Error state -->
+    <div id="vmError" style="display:none;text-align:center;padding:30px 0;color:#dc2626;font-size:14px;font-weight:600">
+      Failed to load this record. Please try again.
+    </div>
+
+  </div>
+</div>
+
+<style>
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .report-btn:hover { background:#bfdbfe !important; }
+</style>
+
+<script>
+/* ── filter / search ── */
+function filterTable(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.history-row').forEach(row => {
+    const result = row.dataset.result;
+    const fileType = row.dataset.type;
+    let show = false;
+    if (type === 'all') show = true;
+    else if (type === 'fake' && result === 'fake') show = true;
+    else if (type === 'real' && result === 'real') show = true;
+    else if (type === 'image' && fileType === 'image') show = true;
+    else if (type === 'video' && fileType === 'video') show = true;
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+function searchTable(val) {
+  const q = val.toLowerCase().trim();
+  document.querySelectorAll('.history-row').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+
+/* ── GradCAM image preview modal ── */
+function openGradcam(src, name, title) {
+  document.getElementById('modalImg').src = src;
+  document.getElementById('modalTitle').textContent = (title || 'GradCAM') + ' — ' + name;
+  document.getElementById('gradcamModal').classList.add('open');
+}
+function closeGradcamModal() {
+  document.getElementById('gradcamModal').classList.remove('open');
+}
+document.getElementById('gradcamModal').addEventListener('click', function(e) {
+  if (e.target === this) closeGradcamModal();
+});
+
+/* ── View Detail modal ── */
+async function openViewModal(predictionId) {
+  // Reset states
+  document.getElementById('vmLoading').style.display = 'block';
+  document.getElementById('vmContent').style.display = 'none';
+  document.getElementById('vmError').style.display = 'none';
+  document.getElementById('vmTitle').textContent = 'Detection Detail';
+  document.getElementById('vmSubtitle').textContent = '';
+  document.getElementById('viewModal').classList.add('open');
+
+  try {
+    const resp = await fetch('/history/prediction/' + predictionId);
+    if (!resp.ok) throw new Error('Not found');
+    const d = await resp.json();
+
+    // Populate header
+    document.getElementById('vmTitle').textContent = d.file_name;
+    document.getElementById('vmSubtitle').textContent =
+      d.file_type.toUpperCase() + ' · ' + d.created_at;
+
+    // Badge
+    const badge = document.getElementById('vmBadge');
+    if (d.prediction === 'Fake') {
+      badge.textContent = '✗ DEEPFAKE DETECTED';
+      badge.className = 'vm-result-badge fake';
+    } else {
+      badge.textContent = '✓ REAL MEDIA';
+      badge.className = 'vm-result-badge real';
+    }
+
+    // Confidence
+    document.getElementById('vmConfText').textContent = d.confidence + '%';
+    document.getElementById('vmConfFill').style.width = d.confidence + '%';
+
+    // Meta
+    document.getElementById('vmMeta').textContent =
+      'File: ' + d.file_name + '  ·  Analyzed: ' + d.created_at;
+
+    // GradCAM
+    if (d.gradcam_url) {
+      document.getElementById('vmGradcamImg').src = d.gradcam_url;
+      document.getElementById('vmGradcamSection').style.display = 'block';
+    } else {
+      document.getElementById('vmGradcamSection').style.display = 'none';
+    }
+
+    // RGB
+    if (d.rgb_url) {
+      document.getElementById('vmRgbImg').src = d.rgb_url;
+      document.getElementById('vmRgbSection').style.display = 'block';
+    } else {
+      document.getElementById('vmRgbSection').style.display = 'none';
+    }
+
+    // Report
+    if (d.has_report) {
+      document.getElementById('vmReportLink').href = '/download_report/' + d.id;
+      document.getElementById('vmReportSection').style.display = 'block';
+    } else {
+      document.getElementById('vmReportSection').style.display = 'none';
+    }
+
+    // Show content
+    document.getElementById('vmLoading').style.display = 'none';
+    document.getElementById('vmContent').style.display = 'block';
+
+  } catch(err) {
+    document.getElementById('vmLoading').style.display = 'none';
+    document.getElementById('vmError').style.display = 'block';
+  }
+}
+
+function closeViewModal() {
+  document.getElementById('viewModal').classList.remove('open');
+}
+document.getElementById('viewModal').addEventListener('click', function(e) {
+  if (e.target === this) closeViewModal();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign Up — DeepGuard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #0ea5e9;
+    --surface: #f8fafc;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --error: #dc2626;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Nunito',sans-serif; background:var(--surface); color:var(--text); min-height:100vh; overflow-x:hidden; }
+  h1,h2,h3,h4 { font-family:'Manrope',sans-serif; }
+
+  .split-left {
+    background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 50%, #e0f2fe 100%);
+    position: relative; overflow: hidden;
+  }
+  .split-left::before {
+    content:''; position:absolute; width:500px; height:500px;
+    background: radial-gradient(circle, rgba(37,99,235,0.1) 0%, transparent 70%);
+    top:-100px; left:-100px; border-radius:50%;
+    animation: pulse 7s ease-in-out infinite;
+  }
+  .split-left::after {
+    content:''; position:absolute; width:350px; height:350px;
+    background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+    bottom:0; right:-50px; border-radius:50%;
+    animation: pulse 9s ease-in-out infinite reverse;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+
+  .form-input {
+    width:100%; padding:12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius:12px; font-size:15px;
+    font-family:'Nunito',sans-serif; font-weight:500;
+    color:var(--text); background:white;
+    transition: all 0.2s ease; outline:none;
+  }
+  .form-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+  .form-input.error { border-color:var(--error); box-shadow:0 0 0 3px rgba(220,38,38,0.08); }
+
+  .form-label { font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px; display:block; }
+
+  .btn-submit {
+    width:100%; padding:14px;
+    background: linear-gradient(135deg,#2563eb,#0ea5e9);
+    color:white; font-family:'Manrope',sans-serif;
+    font-weight:700; font-size:15px;
+    border:none; border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 20px rgba(37,99,235,0.3);
+    transition: all 0.3s ease; position:relative; overflow:hidden;
+  }
+  .btn-submit:hover { transform:translateY(-1px); box-shadow:0 8px 28px rgba(37,99,235,0.4); }
+  .btn-submit:disabled { opacity:0.7; cursor:not-allowed; transform:none; }
+
+  .error-msg { font-size:12px; color:var(--error); margin-top:5px; display:none; font-weight:600; }
+  .error-msg.show { display:block; }
+
+  .flash-msg {
+    padding:12px 16px; border-radius:10px;
+    font-size:14px; font-weight:600; margin-bottom:20px;
+    display:none;
+  }
+  .flash-msg.success { background:#dcfce7; color:#16a34a; border:1px solid #bbf7d0; display:block; }
+  .flash-msg.error { background:#fee2e2; color:var(--error); border:1px solid #fecaca; display:block; }
+
+  .strength-bar { height:4px; border-radius:99px; background:#e2e8f0; overflow:hidden; margin-top:8px; }
+  .strength-fill { height:100%; border-radius:99px; transition:all 0.4s ease; width:0; }
+
+  .feature-pill {
+    display:inline-flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.7); border:1px solid rgba(37,99,235,0.15);
+    border-radius:99px; padding:8px 16px; font-size:13px; font-weight:600;
+    color:var(--text); backdrop-filter:blur(8px);
+  }
+  .feature-pill svg { flex-shrink:0; }
+
+  .divider { display:flex; align-items:center; gap:12px; margin:20px 0; }
+  .divider span { font-size:13px; color:var(--muted); font-weight:500; white-space:nowrap; }
+  .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  .eye-btn { position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--muted); }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  .animate-in { animation:fadeUp 0.5s ease both; }
+  .delay-1 { animation-delay:0.1s; }
+  .delay-2 { animation-delay:0.2s; }
+  .delay-3 { animation-delay:0.3s; }
+
+  .scan-demo {
+    background:white; border-radius:20px;
+    box-shadow:0 20px 60px rgba(37,99,235,0.15);
+    border:1px solid rgba(255,255,255,0.8);
+    overflow:hidden; position:relative; z-index:1;
+  }
+  .scan-line-demo {
+    position:absolute; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,transparent,#2563eb,#0ea5e9,transparent);
+    animation:scanDemo 3s ease-in-out infinite; z-index:2;
+  }
+  @keyframes scanDemo { 0%{top:0;opacity:1} 50%{top:100%;opacity:1} 100%{top:0;opacity:1} }
+</style>
+</head>
+<body>
+
+<div class="min-h-screen flex">
+
+  <!-- LEFT PANEL -->
+  <div class="split-left hidden lg:flex flex-col justify-between w-1/2 p-12">
+    <a href="/" class="flex items-center gap-2" style="text-decoration:none">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#2563eb,#0ea5e9)">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4a3 3 0 110 6 3 3 0 010-6zm0 14c-2.67 0-5.02-1.34-6.44-3.38C7.07 14.86 9.42 14 12 14s4.93.86 6.44 2.62C16.02 18.66 13.67 20 12 20z"/></svg>
+      </div>
+      <span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text)">DeepGuard</span>
+    </a>
+
+    <div style="position:relative;z-index:1">
+      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);padding:5px 14px;border-radius:99px;font-size:12px;font-weight:700;margin-bottom:24px">
+        <span style="width:6px;height:6px;background:var(--primary);border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span>
+        Join DeepGuard Today
+      </div>
+      <h2 style="font-size:2rem;font-weight:800;line-height:1.2;letter-spacing:-0.5px;margin-bottom:16px;color:var(--text)">
+        Start Detecting<br/>Deepfakes in<br/><span style="background:linear-gradient(135deg,#2563eb,#0ea5e9);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Seconds</span>
+      </h2>
+      <p style="font-size:15px;color:var(--muted);line-height:1.7;margin-bottom:32px">
+        Create your free account and instantly access our AI-powered deepfake detection system with GradCAM heatmaps, chatbot, and PDF reports.
+      </p>
+
+      <!-- Demo card -->
+      <div class="scan-demo" style="max-width:320px">
+        <div class="scan-line-demo"></div>
+        <img src="https://picsum.photos/seed/deepfake99/320/160" alt="Detection Demo" style="width:100%;height:160px;object-fit:cover;display:block" onerror="this.style.background='linear-gradient(135deg,#dbeafe,#e0f2fe)';this.style.height='160px'"/>
+        <div style="padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:700;color:var(--text)">Detection Confidence</span>
+            <span style="font-size:13px;font-weight:800;color:var(--primary)">96.2%</span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden">
+            <div style="height:100%;width:96.2%;background:linear-gradient(90deg,#2563eb,#0ea5e9);border-radius:99px"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <span style="background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px">✗ Deepfake Detected</span>
+            <span style="background:#f0f9ff;color:#0ea5e9;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px">GradCAM ✦</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:28px">
+        <div class="feature-pill"><svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Image & Video Deepfake Detection</div>
+        <div class="feature-pill"><svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> GradCAM Visual Heatmaps</div>
+        <div class="feature-pill"><svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Gemini AI Chatbot & PDF Reports</div>
+        <div class="feature-pill"><svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Email Alerts on Fake Detection</div>
+      </div>
+    </div>
+
+    <p style="font-size:12px;color:var(--muted)">© 2026 DeepGuard · </p>
+  </div>
+
+  <!-- RIGHT PANEL — FORM -->
+  <div class="flex-1 flex items-center justify-center p-6 lg:p-12" style="background:white">
+    <div style="width:100%;max-width:420px">
+
+      <!-- Mobile logo -->
+      <a href="/" class="flex items-center gap-2 mb-8 lg:hidden" style="text-decoration:none">
+        <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#2563eb,#0ea5e9)">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path stroke="white" stroke-width="2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+        </div>
+        <span style="font-family:'Manrope',sans-serif;font-weight:800;font-size:1rem;color:var(--text)">DeepGuard</span>
+      </a>
+
+      <div class="animate-in">
+        <h1 style="font-size:1.7rem;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px">Create your account</h1>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:28px">Already have an account? <a href="/login" style="color:var(--primary);font-weight:700;text-decoration:none">Sign in</a></p>
+      </div>
+
+      <!-- Flash messages from Flask -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash-msg {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" action="/signup" id="signupForm" novalidate>
+
+        <!-- Name -->
+        <div class="animate-in delay-1" style="margin-bottom:18px">
+          <label class="form-label" for="name">Full Name</label>
+          <input type="text" id="name" name="name" class="form-input" placeholder="Enter your full name" autocomplete="name" required/>
+          <span class="error-msg" id="nameError">Please enter your full name.</span>
+        </div>
+
+        <!-- Email -->
+        <div class="animate-in delay-1" style="margin-bottom:18px">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com" autocomplete="email" required/>
+          <span class="error-msg" id="emailError">Please enter a valid email address.</span>
+        </div>
+
+        <!-- Password -->
+        <div class="animate-in delay-2" style="margin-bottom:8px">
+          <label class="form-label" for="password">Password</label>
+          <div style="position:relative">
+            <input type="password" id="password" name="password" class="form-input" placeholder="Create a strong password" autocomplete="new-password" required style="padding-right:44px"/>
+            <button type="button" class="eye-btn" id="togglePass" tabindex="-1">
+              <svg id="eyeIcon" width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+            </button>
+          </div>
+          <div class="strength-bar">
+            <div class="strength-fill" id="strengthFill"></div>
+          </div>
+          <span id="strengthText" style="font-size:11px;color:var(--muted);margin-top:3px;display:block;font-weight:600"></span>
+          <span class="error-msg" id="passwordError">Password must be at least 6 characters.</span>
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="animate-in delay-2" style="margin-bottom:24px">
+          <label class="form-label" for="confirm_password">Confirm Password</label>
+          <div style="position:relative">
+            <input type="password" id="confirm_password" name="confirm_password" class="form-input" placeholder="Repeat your password" autocomplete="new-password" required style="padding-right:44px"/>
+            <button type="button" class="eye-btn" id="toggleConfirm" tabindex="-1">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="1.8" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+            </button>
+          </div>
+          <span class="error-msg" id="confirmError">Passwords do not match.</span>
+        </div>
+
+        <!-- Submit -->
+        <div class="animate-in delay-3">
+          <button type="submit" class="btn-submit" id="submitBtn">
+            <span id="btnText">Create Account</span>
+            <span id="btnLoader" style="display:none">
+              <svg style="display:inline;animation:spin 1s linear infinite" width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" stroke-width="3"/><path stroke="white" stroke-width="3" stroke-linecap="round" d="M12 2a10 10 0 0 1 10 10"/></svg>
+              Creating account...
+            </span>
+          </button>
+          <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6">
+            By signing up, you agree to use DeepGuard for research and educational purposes.
+          </p>
+        </div>
+
+      </form>
+
+      <div class="divider animate-in delay-3">
+        <span>or</span>
+      </div>
+
+      <div class="animate-in delay-3" style="text-align:center">
+        <a href="/login" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-weight:600;color:var(--text);text-decoration:none;transition:all 0.2s ease" onmouseover="this.style.borderColor='#2563eb'" onmouseout="this.style.borderColor='var(--border)'">
+          Already have an account? <strong style="color:var(--primary)">Sign In →</strong>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+</style>
+
+<script>
+// Password visibility toggle
+document.getElementById('togglePass').addEventListener('click', () => {
+  const inp = document.getElementById('password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+document.getElementById('toggleConfirm').addEventListener('click', () => {
+  const inp = document.getElementById('confirm_password');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+
+// Password strength
+document.getElementById('password').addEventListener('input', function() {
+  const val = this.value;
+  const fill = document.getElementById('strengthFill');
+  const text = document.getElementById('strengthText');
+  let score = 0;
+  if (val.length >= 6) score++;
+  if (val.length >= 10) score++;
+  if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+  if (/[^A-Za-z0-9]/.test(val)) score++;
+  const levels = [
+    { w: '0%', color: '#e2e8f0', label: '' },
+    { w: '25%', color: '#dc2626', label: 'Weak' },
+    { w: '50%', color: '#f97316', label: 'Fair' },
+    { w: '75%', color: '#eab308', label: 'Good' },
+    { w: '100%', color: '#16a34a', label: 'Strong' },
+  ];
+  const lvl = val.length === 0 ? 0 : Math.min(score + 1, 4);
+  fill.style.width = levels[lvl].w;
+  fill.style.background = levels[lvl].color;
+  text.textContent = levels[lvl].label;
+  text.style.color = levels[lvl].color;
+});
+
+// Form validation
+document.getElementById('signupForm').addEventListener('submit', function(e) {
+  let valid = true;
+
+  const name = document.getElementById('name');
+  const email = document.getElementById('email');
+  const password = document.getElementById('password');
+  const confirm = document.getElementById('confirm_password');
+
+  const showErr = (id, inputEl) => { document.getElementById(id).classList.add('show'); inputEl.classList.add('error'); valid = false; };
+  const hideErr = (id, inputEl) => { document.getElementById(id).classList.remove('show'); inputEl.classList.remove('error'); };
+
+  name.value.trim() ? hideErr('nameError', name) : showErr('nameError', name);
+  const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  emailReg.test(email.value.trim()) ? hideErr('emailError', email) : showErr('emailError', email);
+  password.value.length >= 6 ? hideErr('passwordError', password) : showErr('passwordError', password);
+  password.value === confirm.value && confirm.value ? hideErr('confirmError', confirm) : showErr('confirmError', confirm);
+
+  if (!valid) { e.preventDefault(); return; }
+
+  document.getElementById('btnText').style.display = 'none';
+  document.getElementById('btnLoader').style.display = 'inline-flex';
+  document.getElementById('submitBtn').disabled = true;
+});
+
+// Real-time confirm password check
+document.getElementById('confirm_password').addEventListener('input', function() {
+  const pass = document.getElementById('password').value;
+  if (this.value && this.value !== pass) {
+    document.getElementById('confirmError').classList.add('show');
+    this.classList.add('error');
+  } else {
+    document.getElementById('confirmError').classList.remove('show');
+    this.classList.remove('error');
+  }
+});
+</script>
+</body>
+</html>
